@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/*
+ * Midnight Velocity palette — hex values mirror `src/constants/colors.js` (midnightHex).
+ */
+:root {
+  --mv-app: #0b1020;
+  --mv-sidebar: #111827;
+  --mv-main: #0d1324;
+  --mv-nav: #0b1020;
+  --mv-active-list: #1c2d4a;
+  --mv-elevated: #151d32;
+  --mv-bubble-in: #1a2538;
+  --mv-bubble-in-text: #f1f5ff;
+  --mv-bubble-out: #2f6feb;
+  --mv-bubble-out-text: #ffffff;
+  --mv-media-accent: #c45c3a;
+  --mv-text: #f8fafc;
+  --mv-text-muted: #8c9bb8;
+  --mv-text-nav: #94a3b8;
+  --mv-placeholder: #64748b;
+  --mv-accent-blue: #3b8efc;
+  --mv-accent-orange: #ea7c4d;
+  --mv-status-online: #38bdf8;
+  --mv-input-bg: #080c18;
+  --mv-input-border: #243047;
+  --mv-hairline: rgba(148, 163, 184, 0.14);
+  --mv-danger: #f87171;
+  --mv-success: #4ade80;
+
+  --background: var(--mv-app);
+  --foreground: var(--mv-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-mv-app: var(--mv-app);
+  --color-mv-sidebar: var(--mv-sidebar);
+  --color-mv-main: var(--mv-main);
+  --color-mv-nav: var(--mv-nav);
+  --color-mv-active-list: var(--mv-active-list);
+  --color-mv-elevated: var(--mv-elevated);
+  --color-mv-bubble-in: var(--mv-bubble-in);
+  --color-mv-bubble-in-text: var(--mv-bubble-in-text);
+  --color-mv-bubble-out: var(--mv-bubble-out);
+  --color-mv-bubble-out-text: var(--mv-bubble-out-text);
+  --color-mv-media-accent: var(--mv-media-accent);
+  --color-mv-text: var(--mv-text);
+  --color-mv-text-muted: var(--mv-text-muted);
+  --color-mv-text-nav: var(--mv-text-nav);
+  --color-mv-placeholder: var(--mv-placeholder);
+  --color-mv-accent-blue: var(--mv-accent-blue);
+  --color-mv-accent-orange: var(--mv-accent-orange);
+  --color-mv-status-online: var(--mv-status-online);
+  --color-mv-input-bg: var(--mv-input-bg);
+  --color-mv-input-border: var(--mv-input-border);
+  --color-mv-danger: var(--mv-danger);
+  --color-mv-success: var(--mv-success);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* HTML: <div class="loader"></div> */
+.loader {
+  --c1:#673b14;
+  --c2:#f8b13b;
+  width: 40px;
+  height: 80px;
+  border-top: 4px solid var(--c1);
+  border-bottom: 4px solid var(--c1);
+  background: linear-gradient(90deg, var(--c1) 2px, var(--c2) 0 5px,var(--c1) 0) 50%/7px 8px no-repeat;
+  display: grid;
+  overflow: hidden;
+  animation: l5-0 2s infinite linear;
+}
+.loader::before,
+.loader::after {
+  content: "";
+  grid-area: 1/1;
+  width: 75%;
+  height: calc(50% - 4px);
+  margin: 0 auto;
+  border: 2px solid var(--c1);
+  border-top: 0;
+  box-sizing: content-box;
+  border-radius: 0 0 40% 40%;
+  -webkit-mask: 
+    linear-gradient(#000 0 0) bottom/4px 2px no-repeat,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: destination-out;
+          mask-composite: exclude;
+  background: 
+    linear-gradient(var(--d,0deg),var(--c2) 50%,#0000 0) bottom /100% 205%,
+    linear-gradient(var(--c2) 0 0) center/0 100%;
+  background-repeat: no-repeat;
+  animation: inherit;
+  animation-name: l5-1;
+}
+.loader::after {
+  transform-origin: 50% calc(100% + 2px);
+  transform: scaleY(-1);
+  --s:3px;
+  --d:180deg;
+}
+@keyframes l5-0 {
+  80%  {transform: rotate(0)}
+  100% {transform: rotate(0.5turn)}
+}
+@keyframes l5-1 {
+  10%,70%  {background-size:100% 205%,var(--s,0) 100%}
+  70%,100% {background-position: top,center}
+}

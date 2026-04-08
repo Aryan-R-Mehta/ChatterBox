@@ -23,6 +23,28 @@ export async function getCurrentUser() {
     return res.data;
 }
 
+export async function getAllUserData() {
+    const res = await axiosClient.get("/user/all-users");
+    return res.data;
+}
+
+export async function getCurrentUserChannels() {
+    const res = await axiosClient.get("/user/all-channels");
+    return res.data;
+}
+
+export async function createChannel(data) {
+    console.log(data);
+    const res = await axiosClient.post("/channel/create", data);
+    return res.data;
+}
+
+export async function getChannelData(channelId) {
+    console.log(channelId);
+    const res = await axiosClient.get(`/channel/all-data/${channelId}`);
+    return res.data;
+}
+
 export async function updateProfile(data) {
     const res = await axiosClient.patch("/user/update", data);
     return res.data;

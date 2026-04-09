@@ -24,10 +24,10 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning className="flex min-h-full flex-col">
+      <body suppressHydrationWarning className="flex h-full flex-col overflow-hidden">
         <AuthProvider>
           <Navbar />
-          <main className="flex min-h-0 flex-1 flex-col pt-17">
+          <main className="flex min-h-0 flex-1 flex-col pt-18">
             {children}
           </main>
         </AuthProvider>

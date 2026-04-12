@@ -23,12 +23,12 @@ export async function getCurrentUser() {
     return res.data;
 }
 
-export async function getAllUserData() {
+export async function getAllUserNames() {
     const res = await axiosClient.get("/user/all-users");
     return res.data;
 }
 
-export async function getCurrentUserChannels() {
+export async function getUserChannels() {
     const res = await axiosClient.get("/user/all-channels");
     return res.data;
 }

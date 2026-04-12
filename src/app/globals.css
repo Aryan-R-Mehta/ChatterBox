@@ -117,3 +117,7 @@ body {
   10%,70%  {background-size:100% 205%,var(--s,0) 100%}
   70%,100% {background-position: top,center}
 }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0px;
+}

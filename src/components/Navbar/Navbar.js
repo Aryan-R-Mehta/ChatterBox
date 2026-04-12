@@ -4,27 +4,30 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { logout } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { LogOutIcon } from "lucide-react";
+import { UserPen } from "lucide-react";
 
 export default function Navbar() {
     const { user, loading, setUser } = useAuth();
     const router = useRouter();
-    const [open, setOpen] = useState(false);
+    const [openDropdown, setOpenDropdown] = useState(false);
+    const [openLogoutModal, setOpenLogoutModal] = useState(false);
     const menuRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
-                setOpen(false);
+                setOpenDropdown(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    if (loading) return <div/>;
+    if (loading) return <div />;
 
     const handleSignOut = async () => {
-        setOpen(false);
+        setOpenDropdown(false);
         try {
             await logout();
         } catch {
@@ -48,14 +51,14 @@ export default function Navbar() {
                     <div className="relative" ref={menuRef}>
                         <button
                             type="button"
-                            onClick={() => setOpen(!open)}
+                            onClick={() => setOpenDropdown(!openDropdown)}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                             <span className="w-2 h-2 bg-green-500 rounded-full" />
                             {user.username}
                         </button>
 
-                        {open && (
+                        {openDropdown && (
                             <div className="absolute right-0 mt-3 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden">
                                 <div className="px-4 py-3 border-b border-slate-700">
                                     <p className="text-sm font-semibold text-white">
@@ -66,24 +69,57 @@ export default function Navbar() {
                                     </p>
                                 </div>
 
-                                <ul className="py-2 text-sm text-slate-300">
+                                <ul className="text-sm text-slate-300">
                                     <li>
                                         <Link
                                             href="/profile"
-                                            className="block px-4 py-2 hover:bg-slate-800 hover:text-white transition"
-                                            onClick={() => setOpen(false)}
+                                            className="flex gap-3 px-4 py-2 mt-1 hover:bg-slate-800 hover:text-white transition"
+                                            onClick={() => setOpenDropdown(false)}
                                         >
+                                            <UserPen size={18} />
                                             Edit Profile
                                         </Link>
                                     </li>
                                     <li className="border-t border-slate-700 mt-1 pt-1">
                                         <button
                                             type="button"
-                                            onClick={handleSignOut}
-                                            className="w-full text-left block px-4 py-2 text-red-400 hover:bg-red-500/10 transition"
+                                            onClick={() => setOpenLogoutModal(!openLogoutModal)}
+                                            className="w-full mb-1 flex gap-3 cursor-pointer text-left block px-4 py-2 text-red-500 hover:bg-red-500/10 transition"
                                         >
+                                            <LogOutIcon size={18} />
                                             Sign out
                                         </button>
+
+                                        {openLogoutModal && (
+                                            <div className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/50">
+
+                                                <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-80 shadow-xl">
+                                                    <h2 className="text-white text-lg font-semibold mb-4">
+                                                        Confirm Logout
+                                                    </h2>
+
+                                                    <p className="text-slate-400 mb-6">
+                                                        Are you sure you want to sign out?
+                                                    </p>
+
+                                                    <div className="flex justify-end gap-3">
+                                                        <button
+                                                            onClick={() => setOpenLogoutModal(false)}
+                                                            className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded text-white"
+                                                        >
+                                                            Cancel
+                                                        </button>
+
+                                                        <button
+                                                            onClick={handleSignOut}
+                                                            className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 rounded text-white"
+                                                        >
+                                                            Logout
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </li>
                                 </ul>
                             </div>

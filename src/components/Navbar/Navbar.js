@@ -33,6 +33,7 @@ export default function Navbar() {
         } catch {
             /* still clear client state */
         }
+        localStorage.removeItem("accessToken");
         setUser(null);
         router.replace("/auth/login");
     };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { getChannelData, messageSend } from "@/hooks/useAuth";
+import { getChannelData, messageDelete, messageEdit, messageSend } from "@/hooks/useAuth";
 import { socket } from "@/lib/socket";
 import { CopyIcon, Trash2, PencilIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,6 @@ export default function ChannelPage({ params }) {
     const [channelData, setChannelData] = useState(null);
     const [msgBody, setMsgBody] = useState("");
 
-    // ✅ New modal state
     const [modalState, setModalState] = useState({
         type: null, // "edit" | "delete"
         message: null,
@@ -23,7 +22,6 @@ export default function ChannelPage({ params }) {
 
     const [editText, setEditText] = useState("");
 
-    // ================= FETCH =================
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -36,7 +34,6 @@ export default function ChannelPage({ params }) {
         if (channelId) fetchData();
     }, [channelId]);
 
-    // ================= SOCKET =================
     useEffect(() => {
         if (!channelId) return;
 
@@ -52,12 +49,41 @@ export default function ChannelPage({ params }) {
             });
         });
 
+        socket.on("edited_message", (editedMsg) => {
+            setChannelData((prev) => {
+                if (!prev) return prev;
+
+                return {
+                    ...prev,
+                    messages: prev.messages.map((msg) =>
+                        msg.id === editedMsg.id
+                            ? { ...msg, content: editedMsg.content }
+                            : msg
+                    ),
+                };
+            });
+        });
+
+        socket.on("delete_message", (deletedMsg) => {
+            setChannelData((prev) => {
+                if (!prev) return prev;
+
+                return {
+                    ...prev,
+                    messages: prev.messages.map((msg) =>
+                        msg.id === deletedMsg.id
+                            ? { ...msg, content: deletedMsg.content }
+                            : msg
+                    ),
+                };
+            });
+        });
+
         return () => {
             socket.off("receive_message");
         };
     }, [channelId]);
 
-    // ================= SEND MESSAGE =================
     const handleKeyDown = async (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -87,24 +113,27 @@ export default function ChannelPage({ params }) {
     };
 
     const handleUpdateMessage = async () => {
-        // TODO: connect API
-        console.log("Update:", modalState.message.id, editText);
-
+        const res = await messageEdit({
+            channelId,
+            messageId: modalState.message.id,
+            messageBody: editText.trim(),
+        });
+        console.log(res);
         closeModal();
     };
 
     const handleDeleteMessage = async () => {
-        // TODO: connect API
-        console.log("Delete:", modalState.message.id);
-
+        const res = await messageDelete({
+            channelId,
+            messageId: modalState.message.id,
+        })
+        console.log(res);
         closeModal();
     };
 
-    // ================= UI =================
     return (
         <div className="flex flex-col h-full overflow-hidden">
 
-            {/* HEADER */}
             <div className="pt-6 pb-4 px-6 border-b-4 border-indigo-500 shrink-0">
                 {channelData ? channelData.name : "Loading..."}
             </div>
@@ -136,7 +165,7 @@ export default function ChannelPage({ params }) {
                                             className="cursor-pointer"
                                             onClick={() => openDeleteModal(msg)}
                                         />
-                                        <CopyIcon size={15} className="cursor-pointer" />
+                                        <CopyIcon size={15} className="cursor-pointer" onClick={() => navigator.clipboard.writeText(msg.content)} />
                                         <PencilIcon
                                             size={15}
                                             className="cursor-pointer"
@@ -206,7 +235,7 @@ export default function ChannelPage({ params }) {
                     onClick={closeModal}
                 >
                     <div
-                        className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-80 shadow-xl space-y-4"
+                        className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-3xl shadow-xl space-y-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* EDIT */}
@@ -215,9 +244,10 @@ export default function ChannelPage({ params }) {
                                 <h2 className="text-white font-semibold">Edit Message</h2>
 
                                 <textarea
+                                    className="bg-[#222630] px-4 py-3 w-full text-white rounded-lg border-2 focus:border-[#596A95] border-[#2B3040] resize-none overflow-hidden"
                                     value={editText}
+                                    rows={1}
                                     onChange={(e) => setEditText(e.target.value)}
-                                    className="w-full bg-[#222630] text-white p-2 rounded"
                                 />
 
                                 <div className="flex justify-end gap-2">
@@ -225,14 +255,14 @@ export default function ChannelPage({ params }) {
                                         onClick={closeModal}
                                         className="px-3 py-1 bg-gray-600 rounded"
                                     >
-                                        Cancel
+                                        Discard
                                     </button>
 
                                     <button
                                         onClick={handleUpdateMessage}
                                         className="px-3 py-1 bg-indigo-500 rounded"
                                     >
-                                        Save
+                                        Edit
                                     </button>
                                 </div>
                             </>

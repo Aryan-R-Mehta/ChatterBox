@@ -39,6 +39,7 @@ export async function updateProfile(data) {
 }
 
 export async function logout() {
+    localStorage.removeItem("accessToken");
     const res = await axiosClient.post("/user/logout");
     return res.data;
 }
@@ -55,5 +56,15 @@ export async function getChannelData(channelId) {
 
 export async function messageSend(data) {
     const res = await axiosClient.post("/message/send", data);
+    return res.data;
+}
+
+export async function messageEdit(data) {
+    const res = await axiosClient.patch("/message/edit", data);
+    return res.data;
+}
+
+export async function messageDelete(data) {
+    const res = await axiosClient.post("/message/delete", data);
     return res.data;
 }

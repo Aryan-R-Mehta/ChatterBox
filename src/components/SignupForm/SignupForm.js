@@ -27,6 +27,7 @@ export default function SignupForm() {
         setLoading(true);
         try{
             const res = await signup(formData);
+            localStorage.setItem("accessToken", res.accessToken);
             setSuccessMsg(res.message || "Signup successful ✅");
             setFormData({
                 username: "",

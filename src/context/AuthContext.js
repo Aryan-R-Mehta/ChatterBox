@@ -6,34 +6,48 @@ import { getCurrentUser } from "@/hooks/useAuth";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  const refreshUser = useCallback(async ({ withLoading = false } = {}) => {
-    if (withLoading) setLoading(true);
-    try {
-      const res = await getCurrentUser();
-      setUser(res.user);
-      return res.user;
-    } catch {
-      setUser(null);
-      return null;
-    } finally {
-      if (withLoading) setLoading(false);
-    }
-  }, []);
+    const refreshUser = useCallback(async ({ withLoading = false } = {}) => {
+        const token = localStorage.getItem("accessToken");
 
-  useEffect(() => {
-    refreshUser({ withLoading: true });
-  }, [refreshUser]);
+        if (!token) {
+            setUser(null);
+            setLoading(false);
+            return null;
+        }
 
-  return (
-    <AuthContext.Provider value={{ user, setUser, loading, refreshUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+        if (withLoading) setLoading(true);
+
+        try {
+            const res = await getCurrentUser();
+            setUser(res.user);
+            return res.user;
+        } catch {
+            setUser(null);
+            localStorage.removeItem("accessToken");
+            return null;
+        } finally {
+            if (withLoading) setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const init = async () => {
+            await refreshUser({ withLoading: true });
+        };
+
+        init();
+    }, []);
+
+    return (
+        <AuthContext.Provider value={{ user, setUser, loading, refreshUser }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+    return useContext(AuthContext);
 };

@@ -26,7 +26,8 @@ function LoginFormInner() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await login(formData)
+            const res = await login(formData);
+            localStorage.setItem("accessToken", res.accessToken);
             setSuccessMsg(res.message || "Login successful ✅");
             setFormData({
                 email: "",

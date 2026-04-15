@@ -82,18 +82,16 @@ export default function ChatterShell({ children }) {
                 selectedIds.includes(u.id)
             );
             const channelType = selectedUsers.length > 1 ? "GROUP" : "CHAT";
-            const generatedName =
-                selectedUsers
-                    .map((u) => u.account.username || "User")
-                    .slice(0, 3)
-                    .join(", ") +
-                (selectedUsers.length > 3 ? "..." : ", " + user.username);
             const channel = await createChannel({
                 memberIds: selectedIds,
-                name: generatedName,
+                name: channelType === "GROUP" ? "New Group" : null,
                 channelType,
             });
-            console.log(channel);
+            setChannels((prev) => {
+                const exists = prev.find((ch) => ch.id === channel.id);
+                if (exists) return prev;
+                return [...prev, channel];
+            });
             setSelectedIds([]);
             setOpen(false);
             router.push(`/${channel.id}`);
@@ -104,6 +102,32 @@ export default function ChatterShell({ children }) {
             setLoading(false);
         }
     };
+
+    const getChannelName = (channel) => {
+        if (!channel?.members) return "Unknown";
+
+        if (channel.channelType === "GROUP" && channel.name) {
+            return channel.name;
+        }
+
+        const otherMembers = channel.members.filter(
+            (m) => m.user.id !== user.id
+        );
+
+        return otherMembers
+            .map((m) => m.user.account.username)
+            .join(", ");
+    };
+
+    const filteredChatChannels = chatChannels.filter((ch) => {
+        const name = getChannelName(ch)?.toLowerCase() || "";
+        return name.includes(search.toLowerCase());
+    });
+
+    const filteredGroupChannels = groupChannels.filter((ch) => {
+        const name = getChannelName(ch)?.toLowerCase() || "";
+        return name.includes(search.toLowerCase());
+    });
 
     return (
         <div className={`flex min-h-[calc(100vh-5rem)] min-w-0 flex-1 flex-col md:flex-row ${chatterColors.page}`} >
@@ -253,27 +277,33 @@ export default function ChatterShell({ children }) {
                         <input
                             placeholder="Search chats..."
                             className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition
-              focus:ring-2 focus:ring-opacity-50 ${chatterColors.input}`}
+  focus:ring-2 focus:ring-opacity-50 ${chatterColors.input}`}
                             type="search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
 
                     {/* Chat List */}
                     <div className={`min-h-0 flex-1 overflow-y-auto text-sm space-y-4 ${chatterColors.sidebarMuted}`}>
-                        {chatChannels.length !== 0 ?
+                        {filteredChatChannels.length !== 0 ?
                             <div>
                                 <h3 className="text-xs uppercase text-zinc-400 mb-2 px-1">
                                     Direct Messages
                                 </h3>
 
                                 {
-                                    chatChannels.map((ch) => (
+                                    filteredChatChannels.map((ch) => (
                                         <button
                                             key={ch.id}
                                             onClick={() => openChannel(ch.id)}
                                             className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
                                         >
-                                            <span className="relative z-20">{ch.name}</span>
+                                            <span className="relative z-20">
+                                                {ch.channelType === "GROUP"
+                                                    ? ch.name
+                                                    : getChannelName(ch)}
+                                            </span>
                                         </button>
                                     ))
                                 }
@@ -281,20 +311,20 @@ export default function ChatterShell({ children }) {
                             : ""
                         }
 
-                        {groupChannels.length !== 0 ?
+                        {filteredGroupChannels.length !== 0 ?
                             <div>
                                 <h3 className="text-xs uppercase text-zinc-400 mb-2 px-1">
                                     Group Chats
                                 </h3>
 
                                 {
-                                    groupChannels.map((ch) => (
+                                    filteredGroupChannels.map((ch) => (
                                         <button
                                             key={ch.id}
                                             onClick={() => openChannel(ch.id)}
                                             className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
                                         >
-                                            <span className="relative z-20">{ch.name}</span>
+                                            <span className="relative z-20">{getChannelName(ch)}</span>
                                         </button>
                                     ))
                                 }

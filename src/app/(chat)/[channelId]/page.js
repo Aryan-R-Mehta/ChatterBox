@@ -26,6 +26,7 @@ export default function ChannelPage({ params }) {
         const fetchData = async () => {
             try {
                 const data = await getChannelData(channelId);
+                console.log(data);
                 setChannelData(data);
             } catch (err) {
                 router.push("/");
@@ -67,12 +68,12 @@ export default function ChannelPage({ params }) {
         socket.on("delete_message", (deletedMsg) => {
             setChannelData((prev) => {
                 if (!prev) return prev;
-
+                console.log(deletedMsg);
                 return {
                     ...prev,
                     messages: prev.messages.map((msg) =>
                         msg.id === deletedMsg.id
-                            ? { ...msg, content: deletedMsg.content }
+                            ? { ...msg, ...deletedMsg }
                             : msg
                     ),
                 };
@@ -131,11 +132,25 @@ export default function ChannelPage({ params }) {
         closeModal();
     };
 
+    const getChannelName = (channel) => {
+        if (channel.channelType === "GROUP" && channel.name) {
+            return channel.name;
+        }
+
+        const otherMembers = channel.members.filter(
+            (m) => m.user.id !== user.id
+        );
+
+        return otherMembers
+            .map((m) => m.user.account.username)
+            .join(", ");
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
 
             <div className="pt-6 pb-4 px-6 border-b-4 border-indigo-500 shrink-0">
-                {channelData ? channelData.name : "Loading..."}
+                {channelData ? getChannelName(channelData) : "Loading..."}
             </div>
 
             {/* MESSAGES */}
@@ -158,7 +173,7 @@ export default function ChannelPage({ params }) {
                                 )}
 
                                 {/* Actions */}
-                                {isMe && (
+                                {isMe && !msg.isDeleted && (
                                     <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
                                         <Trash2
                                             size={15}

@@ -3,6 +3,7 @@
 import { chatterColors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { createChannel, getAllUserNames, getUserChannels } from "@/hooks/useAuth";
+import { socket } from "@/lib/socket";
 import { redirect, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -33,6 +34,24 @@ export default function ChatterShell({ children }) {
             }
         };
         fetchChannels();
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        socket.on("channel_rename", (updatedChannel) => {
+            setChannels((prev) =>
+                prev.map((ch) =>
+                    ch.id === updatedChannel.id
+                        ? { ...ch, name: updatedChannel.name }
+                        : ch
+                )
+            );
+        });
+
+        return () => {
+            socket.off("channel_rename");
+        };
     }, [user]);
 
     const openChannel = (id) => {

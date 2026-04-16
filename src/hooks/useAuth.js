@@ -59,6 +59,11 @@ export async function messageSend(data) {
     return res.data;
 }
 
+export async function ChannelRename(data) {
+    const res = await axiosClient.post("/channel/rename", data);
+    return res.data;
+}
+
 export async function messageEdit(data) {
     const res = await axiosClient.patch("/message/edit", data);
     return res.data;

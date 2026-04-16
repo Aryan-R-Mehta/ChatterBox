@@ -45,6 +45,7 @@ export const midnightHex = {
   // Feedback
   danger: "#f87171",
   success: "#4ade80",
+  warning: "#f59e0b",
 };
 
 /** Tailwind class fragments (single concern per key; combine in components). */

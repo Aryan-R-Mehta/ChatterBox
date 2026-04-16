@@ -2,6 +2,7 @@
 
 import { signup } from "@/hooks/useAuth";
 import { useAuth } from "@/context/AuthContext";
+import { showAppToast } from "@/components/AppToast/ToastNotification";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -14,8 +15,6 @@ export default function SignupForm() {
         password: "",
     });
     const [loading, setLoading] = useState(false);
-    const [errorMsg, setErrorMsg] = useState("")
-    const [successMsg, setSuccessMsg] = useState("")
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -28,18 +27,16 @@ export default function SignupForm() {
         try{
             const res = await signup(formData);
             localStorage.setItem("accessToken", res.accessToken);
-            setSuccessMsg(res.message || "Signup successful ✅");
+            showAppToast("success", "Signup successful");
             setFormData({
                 username: "",
                 email: "",
                 password: "",
             });
-            setErrorMsg("");
-            setSuccessMsg("");
             setUser(res.user);
             router.push("/");
         } catch (err){
-            setErrorMsg(err.message || "Signup failed ❌");
+            showAppToast("error", "Signup failed");
         } finally {
             setLoading(false);
         }
@@ -47,18 +44,6 @@ export default function SignupForm() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            {errorMsg && (
-                <div className="text-red-400 text-xs bg-red-400/10 p-2 rounded border border-red-400/20">
-                    {errorMsg}
-                </div>
-            )}
-
-            {successMsg && (
-                <div className="text-green-400 text-xs bg-green-400/10 p-2 rounded border border-green-400/20">
-                    {successMsg}
-                </div>
-            )}
-
             <div>
                 <label className="block text-sm font-medium text-gray-100">Username</label>
                 <input

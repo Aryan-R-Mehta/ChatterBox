@@ -1,8 +1,10 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { getChannelData, messageDelete, messageEdit, messageSend } from "@/hooks/useAuth";
+import { ChannelRename, getChannelData, messageDelete, messageEdit, messageSend } from "@/hooks/useAuth";
 import { socket } from "@/lib/socket";
+import { showAppToast } from "@/components/AppToast/ToastNotification";
+import { SquarePenIcon } from "lucide-react";
 import { CopyIcon, Trash2, PencilIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
@@ -26,7 +28,6 @@ export default function ChannelPage({ params }) {
         const fetchData = async () => {
             try {
                 const data = await getChannelData(channelId);
-                console.log(data);
                 setChannelData(data);
             } catch (err) {
                 router.push("/");
@@ -39,6 +40,17 @@ export default function ChannelPage({ params }) {
         if (!channelId) return;
 
         socket.emit("join_channel", channelId);
+
+        socket.on("channel_rename", (updatedChannel) => {
+            setChannelData((prev) => {
+                if (!prev) return prev;
+
+                return {
+                    ...prev,
+                    name: updatedChannel.name,
+                };
+            });
+        });
 
         socket.on("receive_message", (newMsg) => {
             setChannelData((prev) => {
@@ -100,6 +112,11 @@ export default function ChannelPage({ params }) {
     };
 
     // ================= ACTION HANDLERS =================
+    const openChannelRenameModal = (channelName) => {
+        setEditText(channelName);
+        setModalState({ type: "channelRename", message: channelName });
+    };
+
     const openEditModal = (msg) => {
         setEditText(msg.content);
         setModalState({ type: "edit", message: msg });
@@ -112,6 +129,15 @@ export default function ChannelPage({ params }) {
     const closeModal = () => {
         setModalState({ type: null, message: null });
     };
+
+    const handleRenameChannel = async () => {
+        const res = await ChannelRename({
+            channelId,
+            channelNewName: editText.trim()
+        })
+        console.log(res);
+        closeModal();
+    }
 
     const handleUpdateMessage = async () => {
         const res = await messageEdit({
@@ -148,9 +174,24 @@ export default function ChannelPage({ params }) {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-
-            <div className="pt-6 pb-4 px-6 border-b-4 border-indigo-500 shrink-0">
+            <button
+                className="bg-indigo-700 p-3"
+                onClick={() => showAppToast("success", "Notification shown")}
+            >
+                notification shown
+            </button>
+            <div className="flex gap-3 pt-6 pb-4 px-6 border-b-4 border-indigo-500 shrink-0">
                 {channelData ? getChannelName(channelData) : "Loading..."}
+                {channelData?.channelType == "GROUP"
+                    ?
+                    (
+                        <button className="cursor-pointer" onClick={() => openChannelRenameModal(getChannelName(channelData))}>
+                            <SquarePenIcon />
+                        </button>
+                    )
+                    :
+                    ""
+                }
             </div>
 
             {/* MESSAGES */}
@@ -253,6 +294,36 @@ export default function ChannelPage({ params }) {
                         className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-3xl shadow-xl space-y-4"
                         onClick={(e) => e.stopPropagation()}
                     >
+
+                        {modalState.type === "channelRename" && (
+                            <>
+                                <h2 className="text-white font-semibold">Rename Channel</h2>
+
+                                <textarea
+                                    className="bg-[#222630] px-4 py-3 w-full text-white rounded-lg border-2 focus:border-[#596A95] border-[#2B3040] resize-none overflow-hidden"
+                                    value={editText}
+                                    rows={1}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                />
+
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={closeModal}
+                                        className="px-3 py-1 bg-gray-600 rounded"
+                                    >
+                                        Discard
+                                    </button>
+
+                                    <button
+                                        onClick={handleRenameChannel}
+                                        className="px-3 py-1 bg-indigo-500 rounded"
+                                    >
+                                        Rename Channel
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
                         {/* EDIT */}
                         {modalState.type === "edit" && (
                             <>

@@ -2,6 +2,7 @@
 
 import { login } from "@/hooks/useAuth";
 import { useAuth } from "@/context/AuthContext";
+import { showAppToast } from "@/components/AppToast/ToastNotification";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 
@@ -13,8 +14,6 @@ function LoginFormInner() {
         email: "",
         password: "",
     });
-    const [errorMsg, setErrorMsg] = useState("")
-    const [successMsg, setSuccessMsg] = useState("")
     const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
@@ -28,17 +27,15 @@ function LoginFormInner() {
         try {
             const res = await login(formData);
             localStorage.setItem("accessToken", res.accessToken);
-            setSuccessMsg(res.message || "Login successful ✅");
+            showAppToast("success", "Login successful");
             setFormData({
                 email: "",
                 password: "",
             });
-            setErrorMsg("");
-            setSuccessMsg("");
             setUser(res.user);
             router.push("/");
         } catch(err){
-            setErrorMsg(err.message || "Login failed ❌");
+            showAppToast("error", "Login failed");
         } finally {
             setLoading(false);
         }
@@ -46,12 +43,6 @@ function LoginFormInner() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {errorMsg && (
-                <div className="text-red-400 text-xs bg-red-400/10 p-2 rounded border border-red-400/20">
-                    {errorMsg}
-                </div>
-            )}
-
             <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-200">
                     Email address

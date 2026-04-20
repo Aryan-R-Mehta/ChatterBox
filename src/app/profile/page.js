@@ -1,13 +1,13 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { updateProfile } from "@/hooks/useAuth";
+import { updateAuthenticatedProfile } from "@/api/chatBackendClient";
 import { useEffect, useState } from "react";
 
 export default function ProfilePage() {
   const { user, setUser, loading } = useAuth();
 
-  const [formData, setformData] = useState({
+  const [profileForm, setProfileForm] = useState({
     username: "",
     email: "",
     bio: "",
@@ -20,7 +20,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
 
-    setformData({
+    setProfileForm({
       id: user.id,
       username: user.username || "",
       email: user.email || "",
@@ -34,28 +34,28 @@ export default function ProfilePage() {
     if (!user) return;
 
     const hasChanges =
-      formData.username !== (user.username || "") ||
-      formData.bio !== (user.bio || "") ||
-      formData.showStatus !== (user.showStatus || false);
+      profileForm.username !== (user.username || "") ||
+      profileForm.bio !== (user.bio || "") ||
+      profileForm.showStatus !== (user.showStatus || false);
 
     setIsDirty(hasChanges);
-  }, [formData, user]);
+  }, [profileForm, user]);
 
   const handleChange = (field, value) => {
-    setformData((prev) => ({ ...prev, [field]: value }));
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await updateProfile(formData);
+      const res = await updateAuthenticatedProfile(profileForm);
       setUser(res.user);
       setIsDirty(false);
     } catch (err) {}
   };
 
   const handleDiscard = () => {
-    setformData({
+    setProfileForm({
       username: user?.username || "",
       email: user?.email || "",
       bio: user?.bio || "",
@@ -100,7 +100,7 @@ export default function ProfilePage() {
                   <input
                     type="text"
                     className={inputClass}
-                    value={formData.username}
+                    value={profileForm.username}
                     onChange={(e) =>
                       handleChange("username", e.target.value)
                     }
@@ -115,7 +115,7 @@ export default function ProfilePage() {
                     type="email"
                     disabled
                     className={`${inputClass} opacity-60 cursor-not-allowed`}
-                    value={formData.email}
+                    value={profileForm.email}
                   />
                 </div>
               </div>
@@ -127,7 +127,7 @@ export default function ProfilePage() {
                 </label>
                 <textarea
                   className={textareaClass}
-                  value={formData.bio}
+                  value={profileForm.bio}
                   onChange={(e) => handleChange("bio", e.target.value)}
                 />
               </div>
@@ -143,7 +143,7 @@ export default function ProfilePage() {
                     <input
                       type="checkbox"
                       className="peer sr-only"
-                      checked={formData.showStatus}
+                      checked={profileForm.showStatus}
                       onChange={(e) =>
                         handleChange("showStatus", e.target.checked)
                       }
@@ -194,7 +194,7 @@ export default function ProfilePage() {
         </section>
       </div>
 
-      {/* ✅ Sticky Bottom Bar */}
+      {/* Sticky save bar when the form is dirty */}
       <div
         className={`fixed bottom-0 left-0 w-full transition-all duration-300 ${
           isDirty

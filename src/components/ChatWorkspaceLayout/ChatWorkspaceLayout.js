@@ -2,44 +2,49 @@
 
 import { chatterColors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
-import { createChannel, getAllUserNames, getUserChannels } from "@/hooks/useAuth";
-import { socket } from "@/lib/socket";
-import { redirect, useRouter } from "next/navigation";
+import {
+    createChannelConversation,
+    fetchDirectoryContacts,
+    fetchJoinedChannels,
+} from "@/api/chatBackendClient";
+import { getSharedSocket } from "@/lib/socket";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function ChatterShell({ children }) {
+export default function ChatWorkspaceLayout({ children }) {
     const { user } = useAuth();
     const router = useRouter();
-    const [open, setOpen] = useState(false);
-    const [users, setUsers] = useState([]);
+    const socket = getSharedSocket();
+    const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+    const [directoryUsers, setDirectoryUsers] = useState([]);
     const [channels, setChannels] = useState([]);
-    const chatChannels = channels.filter((ch) => ch.channelType === "CHAT");
+    const directMessageChannels = channels.filter((ch) => ch.channelType === "CHAT");
     const groupChannels = channels.filter((ch) => ch.channelType === "GROUP");
-    const [loading, setLoading] = useState(false);
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [errorMsg, setErrorMsg] = useState("");
-    const [search, setSearch] = useState("");
+    const [isBusy, setIsBusy] = useState(false);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [modalError, setModalError] = useState("");
+    const [channelSearchQuery, setChannelSearchQuery] = useState("");
+    const [newChatUserSearchQuery, setNewChatUserSearchQuery] = useState("");
 
     useEffect(() => {
-        const fetchChannels = async () => {
+        const loadChannels = async () => {
             try {
-                setLoading(true);
-                const allChannels = await getUserChannels();
-                if (!allChannels.length) return;
-                setChannels(allChannels);
+                setIsBusy(true);
+                const joined = await fetchJoinedChannels();
+                if (!joined.length) return;
+                setChannels(joined);
             } catch (err) {
                 console.error(err);
             } finally {
-                setLoading(false);
+                setIsBusy(false);
             }
         };
-        fetchChannels();
+        loadChannels();
     }, [user]);
 
     useEffect(() => {
         if (!user) return;
-
-        socket.on("channel_rename", (updatedChannel) => {
+        const onChannelRenamed = (updatedChannel) => {
             setChannels((prev) =>
                 prev.map((ch) =>
                     ch.id === updatedChannel.id
@@ -47,62 +52,64 @@ export default function ChatterShell({ children }) {
                         : ch
                 )
             );
-        });
+        };
+
+        socket.on("channelRenamed", onChannelRenamed);
 
         return () => {
-            socket.off("channel_rename");
+            socket.off("channelRenamed", onChannelRenamed);
         };
-    }, [user]);
+    }, [user, socket]);
 
-    const openChannel = (id) => {
-        router.push(`/${id}`);
+    const navigateToChannel = (channelId) => {
+        router.push(`/${channelId}`);
     };
 
     useEffect(() => {
-        const fetchUsers = async () => {
-            if (!open) return;
+        const loadDirectory = async () => {
+            if (!isNewChatModalOpen) return;
             try {
-                setLoading(true);
-                const allUserNames = await getAllUserNames();
-                setUsers(allUserNames);
+                setIsBusy(true);
+                const contacts = await fetchDirectoryContacts();
+                setDirectoryUsers(contacts);
             } catch (err) {
                 console.error(err);
             } finally {
-                setLoading(false);
+                setIsBusy(false);
             }
         };
-        fetchUsers();
-    }, [open, user]);
+        loadDirectory();
+    }, [isNewChatModalOpen, user]);
 
-    const filteredUsers = users.filter((u) =>
+    const filteredDirectoryUsers = directoryUsers.filter((u) =>
         u.account.username
             ?.toLowerCase()
-            .includes(search.toLowerCase())
+            .includes(newChatUserSearchQuery.toLowerCase())
     );
 
-    const toggle = (id) => {
-        setSelectedIds((prev) =>
-            prev.includes(id)
-                ? prev.filter((i) => i !== id)
-                : [...prev, id]
+    const toggleUserSelection = (userId) => {
+        setSelectedUserIds((prev) =>
+            prev.includes(userId)
+                ? prev.filter((id) => id !== userId)
+                : [...prev, userId]
         );
     };
 
-    const handleCreate = async () => {
-        setErrorMsg("");
-        if (selectedIds.length === 0) {
-            setErrorMsg("Please select at least one user");
+    const handleStartConversation = async () => {
+        setModalError("");
+        if (selectedUserIds.length === 0) {
+            setModalError("Please select at least one user");
             return;
         }
-        setLoading(true);
+        setIsBusy(true);
 
         try {
-            const selectedUsers = users.filter((u) =>
-                selectedIds.includes(u.id)
+            const selectedUsers = directoryUsers.filter((u) =>
+                selectedUserIds.includes(u.id)
             );
             const channelType = selectedUsers.length > 1 ? "GROUP" : "CHAT";
-            const channel = await createChannel({
-                memberIds: selectedIds,
+            const channel = await createChannelConversation({
+                memberIds: selectedUserIds,
                 name: channelType === "GROUP" ? "New Group" : null,
                 channelType,
             });
@@ -111,18 +118,18 @@ export default function ChatterShell({ children }) {
                 if (exists) return prev;
                 return [...prev, channel];
             });
-            setSelectedIds([]);
-            setOpen(false);
+            setSelectedUserIds([]);
+            setIsNewChatModalOpen(false);
             router.push(`/${channel.id}`);
         } catch (err) {
             console.error(err);
-            setErrorMsg("Failed to create chat");
+            setModalError("Failed to create chat");
         } finally {
-            setLoading(false);
+            setIsBusy(false);
         }
     };
 
-    const getChannelName = (channel) => {
+    const resolveChannelDisplayName = (channel) => {
         if (!channel?.members) return "Unknown";
 
         if (channel.channelType === "GROUP" && channel.name) {
@@ -133,34 +140,33 @@ export default function ChatterShell({ children }) {
             (m) => m.user.id !== user.id
         );
 
-        return otherMembers
-            .map((m) => m.user.account.username)
-            .join(", ");
+        return otherMembers.map((m) => m.user.account.username).join(", ");
     };
 
-    const filteredChatChannels = chatChannels.filter((ch) => {
-        const name = getChannelName(ch)?.toLowerCase() || "";
-        return name.includes(search.toLowerCase());
+    const filteredDirectChannels = directMessageChannels.filter((ch) => {
+        const label = resolveChannelDisplayName(ch)?.toLowerCase() || "";
+        return label.includes(channelSearchQuery.toLowerCase());
     });
 
-    const filteredGroupChannels = groupChannels.filter((ch) => {
-        const name = getChannelName(ch)?.toLowerCase() || "";
-        return name.includes(search.toLowerCase());
+    const filteredGroupChannelList = groupChannels.filter((ch) => {
+        const label = resolveChannelDisplayName(ch)?.toLowerCase() || "";
+        return label.includes(channelSearchQuery.toLowerCase());
     });
 
     return (
-        <div className={`flex min-h-[calc(100vh-5rem)] min-w-0 flex-1 flex-col md:flex-row ${chatterColors.page}`} >
-            <aside className={`flex max-h-[40vh] w-full shrink-0 flex-col border-b md:max-h-none md:h-auto md:max-w-xs md:border-b-0 md:border-r ${chatterColors.sidebar}`} >
+        <div
+            className={`flex min-h-[calc(100vh-5rem)] min-w-0 flex-1 flex-col md:flex-row ${chatterColors.page}`}
+        >
+            <aside
+                className={`flex max-h-[40vh] w-full shrink-0 flex-col border-b md:max-h-none md:h-auto md:max-w-xs md:border-b-0 md:border-r ${chatterColors.sidebar}`}
+            >
                 <div className="flex min-h-0 flex-1 flex-col gap-4 pt-6 px-5 md:min-h-[calc(100vh-5rem)]">
-
                     <div className="flex items-center justify-between">
-                        <h2 className="font-semibold text-xl tracking-tight">
-                            Chats
-                        </h2>
+                        <h2 className="font-semibold text-xl tracking-tight">Chats</h2>
 
                         <button
                             type="button"
-                            onClick={() => setOpen(true)}
+                            onClick={() => setIsNewChatModalOpen(true)}
                             className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition
               hover:scale-[1.03] active:scale-[0.97] bg-[#2f6feb]"
                         >
@@ -168,92 +174,88 @@ export default function ChatterShell({ children }) {
                         </button>
                     </div>
 
-                    {/* Modal */}
-                    {open && (
+                    {isNewChatModalOpen && (
                         <div
                             className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50"
-                            onClick={() => setOpen(false)}
+                            onClick={() => setIsNewChatModalOpen(false)}
                         >
                             <div
                                 className="bg-zinc-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-sm md:max-w-md shadow-2xl border border-zinc-700/50"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {/* Header */}
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-lg font-semibold text-white">
                                         Create Chat
                                     </h2>
                                     <button
-                                        onClick={() => setOpen(false)}
+                                        onClick={() => setIsNewChatModalOpen(false)}
                                         className="text-zinc-400 hover:text-white transition"
                                     >
                                         ✕
                                     </button>
                                 </div>
 
-                                {/* Error */}
-                                {errorMsg && (
+                                {modalError && (
                                     <div className="mb-3 text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
-                                        {errorMsg}
+                                        {modalError}
                                     </div>
                                 )}
 
-                                {/* Search */}
                                 <div className="mb-3">
                                     <input
                                         placeholder="Search users..."
                                         className="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-sky-500 transition"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
+                                        value={newChatUserSearchQuery}
+                                        onChange={(e) =>
+                                            setNewChatUserSearchQuery(e.target.value)
+                                        }
                                         type="search"
                                     />
                                 </div>
 
-                                {/* Users List */}
                                 <div className="max-h-80 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
                                     <ul className="space-y-3">
-                                        {filteredUsers.map((u) => (
+                                        {filteredDirectoryUsers.map((u) => (
                                             <li key={u.id}>
                                                 <div
-                                                    onClick={() => toggle(u.id)}
+                                                    onClick={() => toggleUserSelection(u.id)}
                                                     className={`flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer
                                                         transition-all duration-200 border
-                                                        ${selectedIds.includes(u.id)
-                                                            ? "bg-sky-600/20 border-sky-500"
-                                                            : "bg-zinc-800/60 border-transparent hover:bg-zinc-700/70 hover:border-zinc-600"
+                                                        ${
+                                                            selectedUserIds.includes(u.id)
+                                                                ? "bg-sky-600/20 border-sky-500"
+                                                                : "bg-zinc-800/60 border-transparent hover:bg-zinc-700/70 hover:border-zinc-600"
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        {/* Avatar */}
                                                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white text-sm font-semibold">
                                                             {u.account.username?.charAt(0).toUpperCase()}
                                                         </div>
 
-                                                        {/* Username */}
                                                         <span className="font-medium text-sm text-zinc-200">
                                                             {u.account.username}
                                                         </span>
                                                     </div>
 
-                                                    {/* Add Button */}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            toggle(u.id);
+                                                            toggleUserSelection(u.id);
                                                         }}
                                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200
-                                                            ${selectedIds.includes(u.id)
-                                                                ? "bg-green-500/20 text-green-400"
-                                                                : "bg-zinc-700 text-zinc-300 hover:bg-sky-600 hover:text-white"
+                                                            ${
+                                                                selectedUserIds.includes(u.id)
+                                                                    ? "bg-green-500/20 text-green-400"
+                                                                    : "bg-zinc-700 text-zinc-300 hover:bg-sky-600 hover:text-white"
                                                             }`}
                                                     >
-                                                        {selectedIds.includes(u.id) ? "✓" : "+"}
+                                                        {selectedUserIds.includes(u.id) ? "✓" : "+"}
                                                     </button>
                                                 </div>
                                             </li>
                                         ))}
 
-                                        {users.length === 0 && !loading && (
+                                        {directoryUsers.length === 0 && !isBusy && (
                                             <div className="text-center text-sm text-zinc-400 py-6">
                                                 No users found
                                             </div>
@@ -261,17 +263,15 @@ export default function ChatterShell({ children }) {
                                     </ul>
                                 </div>
 
-                                {/* Footer */}
                                 <div className="flex justify-between items-center mt-5">
-                                    {/* Selected count */}
                                     <span className="text-xs text-zinc-400">
-                                        {selectedIds.length} selected
+                                        {selectedUserIds.length} selected
                                     </span>
 
                                     <div className="flex gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => setOpen(false)}
+                                            onClick={() => setIsNewChatModalOpen(false)}
                                             className="px-4 py-2 text-sm bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition"
                                         >
                                             Cancel
@@ -279,11 +279,11 @@ export default function ChatterShell({ children }) {
 
                                         <button
                                             type="button"
-                                            disabled={loading || selectedIds.length === 0}
-                                            onClick={handleCreate}
+                                            disabled={isBusy || selectedUserIds.length === 0}
+                                            onClick={handleStartConversation}
                                             className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-500 text-white rounded-lg disabled:opacity-40 transition"
                                         >
-                                            {loading ? "Creating…" : "Create"}
+                                            {isBusy ? "Creating…" : "Create"}
                                         </button>
                                     </div>
                                 </div>
@@ -291,70 +291,69 @@ export default function ChatterShell({ children }) {
                         </div>
                     )}
 
-                    {/* Search */}
                     <div className="shrink-0">
                         <input
                             placeholder="Search chats..."
                             className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition
   focus:ring-2 focus:ring-opacity-50 ${chatterColors.input}`}
                             type="search"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            value={channelSearchQuery}
+                            onChange={(e) => setChannelSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    {/* Chat List */}
-                    <div className={`min-h-0 flex-1 overflow-y-auto text-sm space-y-4 ${chatterColors.sidebarMuted}`}>
-                        {filteredChatChannels.length !== 0 ?
+                    <div
+                        className={`min-h-0 flex-1 overflow-y-auto text-sm space-y-4 ${chatterColors.sidebarMuted}`}
+                    >
+                        {filteredDirectChannels.length !== 0 ? (
                             <div>
                                 <h3 className="text-xs uppercase text-zinc-400 mb-2 px-1">
                                     Direct Messages
                                 </h3>
 
-                                {
-                                    filteredChatChannels.map((ch) => (
-                                        <button
-                                            key={ch.id}
-                                            onClick={() => openChannel(ch.id)}
-                                            className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
-                                        >
-                                            <span className="relative z-20">
-                                                {ch.channelType === "GROUP"
-                                                    ? ch.name
-                                                    : getChannelName(ch)}
-                                            </span>
-                                        </button>
-                                    ))
-                                }
+                                {filteredDirectChannels.map((ch) => (
+                                    <button
+                                        key={ch.id}
+                                        onClick={() => navigateToChannel(ch.id)}
+                                        className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
+                                    >
+                                        <span className="relative z-20">
+                                            {ch.channelType === "GROUP"
+                                                ? ch.name
+                                                : resolveChannelDisplayName(ch)}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
-                            : ""
-                        }
+                        ) : (
+                            ""
+                        )}
 
-                        {filteredGroupChannels.length !== 0 ?
+                        {filteredGroupChannelList.length !== 0 ? (
                             <div>
                                 <h3 className="text-xs uppercase text-zinc-400 mb-2 px-1">
                                     Group Chats
                                 </h3>
 
-                                {
-                                    filteredGroupChannels.map((ch) => (
-                                        <button
-                                            key={ch.id}
-                                            onClick={() => openChannel(ch.id)}
-                                            className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
-                                        >
-                                            <span className="relative z-20">{getChannelName(ch)}</span>
-                                        </button>
-                                    ))
-                                }
+                                {filteredGroupChannelList.map((ch) => (
+                                    <button
+                                        key={ch.id}
+                                        onClick={() => navigateToChannel(ch.id)}
+                                        className="relative cursor-pointer w-full py-3 mt-2 text-center text-sm text-white rounded-lg border border-zinc-700 hover:bg-zinc-800 transition group"
+                                    >
+                                        <span className="relative z-20">
+                                            {resolveChannelDisplayName(ch)}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
-                            : ""
-                        }
+                        ) : (
+                            ""
+                        )}
                     </div>
                 </div>
             </aside>
 
-            {/* Main Area */}
             <div
                 className={`flex min-h-0 min-w-0 flex-1 flex-col ${chatterColors.mainArea}`}
             >

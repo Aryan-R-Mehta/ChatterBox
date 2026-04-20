@@ -1,14 +1,14 @@
-import ChatterShell from "@/components/ChatterShell/ChatterShell";
-import RequireAuth from "@/components/RequireAuth/RequireAuth";
+import ChatWorkspaceLayout from "@/components/ChatWorkspaceLayout/ChatWorkspaceLayout";
+import AuthenticatedLayoutGate from "@/components/AuthenticatedLayoutGate/AuthenticatedLayoutGate";
 
 export default function ChatLayout({ children }) {
   return (
-    <RequireAuth>
-      <ChatterShell>
+    <AuthenticatedLayoutGate>
+      <ChatWorkspaceLayout>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {children}
         </div>
-      </ChatterShell>
-    </RequireAuth>
+      </ChatWorkspaceLayout>
+    </AuthenticatedLayoutGate>
   );
 }

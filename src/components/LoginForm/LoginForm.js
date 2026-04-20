@@ -1,6 +1,6 @@
 "use client";
 
-import { login } from "@/hooks/useAuth";
+import { signInWithEmail } from "@/api/chatBackendClient";
 import { useAuth } from "@/context/AuthContext";
 import { showAppToast } from "@/components/AppToast/ToastNotification";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,7 +25,7 @@ function LoginFormInner() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await login(formData);
+            const res = await signInWithEmail(formData);
             localStorage.setItem("accessToken", res.accessToken);
             showAppToast("success", "Login successful");
             setFormData({

@@ -1,5 +1,5 @@
-import RequireAuth from "@/components/RequireAuth/RequireAuth";
+import AuthenticatedLayoutGate from "@/components/AuthenticatedLayoutGate/AuthenticatedLayoutGate";
 
 export default function ProfileLayout({ children }) {
-  return <RequireAuth>{children}</RequireAuth>;
+  return <AuthenticatedLayoutGate>{children}</AuthenticatedLayoutGate>;
 }

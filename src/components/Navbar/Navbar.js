@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { logout } from "@/hooks/useAuth";
+import { signOutAndInvalidateSession } from "@/api/chatBackendClient";
 import { useRouter } from "next/navigation";
 import { LogOutIcon } from "lucide-react";
 import { UserPen } from "lucide-react";
@@ -29,11 +29,10 @@ export default function Navbar() {
     const handleSignOut = async () => {
         setOpenDropdown(false);
         try {
-            await logout();
+            await signOutAndInvalidateSession();
         } catch {
             /* still clear client state */
         }
-        localStorage.removeItem("accessToken");
         setUser(null);
         router.replace("/auth/login");
     };

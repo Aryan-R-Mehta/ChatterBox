@@ -1,8 +1,9 @@
 import axios from "axios";
+import { getApiBaseUrl } from "@/config/api";
 
 export const axiosClient = axios.create({
-  baseURL: "http://localhost:5000",
-  withCredentials: true, // useful for cookies/sessions
+  baseURL: getApiBaseUrl(),
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -20,13 +21,17 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = String(originalRequest?.url ?? "");
+    if (url.includes("/auth/refresh")) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const res = await axios.post(
-          "http://localhost:5000/auth/refresh",
+          `${getApiBaseUrl()}/auth/refresh`,
           {},
           { withCredentials: true }
         );

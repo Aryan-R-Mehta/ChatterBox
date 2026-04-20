@@ -1,6 +1,6 @@
 "use client";
 
-import { signup } from "@/hooks/useAuth";
+import { registerAccount } from "@/api/chatBackendClient";
 import { useAuth } from "@/context/AuthContext";
 import { showAppToast } from "@/components/AppToast/ToastNotification";
 import { useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ export default function SignupForm() {
         e.preventDefault();
         setLoading(true);
         try{
-            const res = await signup(formData);
+            const res = await registerAccount(formData);
             localStorage.setItem("accessToken", res.accessToken);
             showAppToast("success", "Signup successful");
             setFormData({

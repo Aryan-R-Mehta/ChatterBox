@@ -1,16 +1,39 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { getCurrentUser } from "@/hooks/useAuth";
+import axios from "axios";
+import { getApiBaseUrl } from "@/config/api";
+import { fetchAuthenticatedProfile } from "@/api/chatBackendClient";
 
 const AuthContext = createContext(null);
+
+async function trySilentRefreshAccessToken() {
+    const res = await axios.post(
+        `${getApiBaseUrl()}/auth/refresh`,
+        {},
+        { withCredentials: true }
+    );
+    const accessToken = res.data?.accessToken;
+    if (accessToken) {
+        localStorage.setItem("accessToken", accessToken);
+    }
+    return accessToken ?? null;
+}
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const refreshUser = useCallback(async ({ withLoading = false } = {}) => {
-        const token = localStorage.getItem("accessToken");
+        let token = localStorage.getItem("accessToken");
+
+        if (!token) {
+            try {
+                token = await trySilentRefreshAccessToken();
+            } catch {
+                token = null;
+            }
+        }
 
         if (!token) {
             setUser(null);
@@ -21,7 +44,7 @@ export const AuthProvider = ({ children }) => {
         if (withLoading) setLoading(true);
 
         try {
-            const res = await getCurrentUser();
+            const res = await fetchAuthenticatedProfile();
             setUser(res.user);
             return res.user;
         } catch {

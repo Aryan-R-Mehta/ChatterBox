@@ -18,6 +18,16 @@ export async function signInWithEmail(payload) {
     }
 }
 
+export async function resetPassword(data) {
+    const res = await axiosClient.post("/user/resetPassword", data);
+    return res.data;
+}
+
+export async function deleteAccount() {
+    const res = await axiosClient.delete("/user/deleteAccount");
+    return res.data;
+}
+
 export async function fetchAuthenticatedProfile() {
     const res = await axiosClient.get("/user/me");
     return res.data;

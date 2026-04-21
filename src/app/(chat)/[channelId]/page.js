@@ -308,7 +308,7 @@ export default function ChannelConversationPage({ params }) {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex justify-between items-center h-15 px-6 border-b-4 border-indigo-500 shrink-0">
+            <div className="flex justify-between items-center mt-1 h-15 px-6 border-b-4 border-indigo-500 shrink-0">
                 <div className="flex items-center gap-3">
                     {channelRecord ? resolveChannelTitle(channelRecord) : "Loading..."}
                     {channelRecord?.channelType === "GROUP" && (

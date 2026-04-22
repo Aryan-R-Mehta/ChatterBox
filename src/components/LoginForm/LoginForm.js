@@ -27,6 +27,7 @@ function LoginFormInner() {
         try {
             const res = await signInWithEmail(formData);
             localStorage.setItem("accessToken", res.accessToken);
+            localStorage.setItem("cb_has_session", "1");
             showAppToast("success", "Login successful");
             setFormData({
                 email: "",

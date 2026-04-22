@@ -27,6 +27,7 @@ export default function SignupForm() {
         try{
             const res = await registerAccount(formData);
             localStorage.setItem("accessToken", res.accessToken);
+            localStorage.setItem("cb_has_session", "1");
             showAppToast("success", "Signup successful");
             setFormData({
                 username: "",

@@ -50,6 +50,7 @@ export async function updateAuthenticatedProfile(payload) {
 
 export async function signOutAndInvalidateSession() {
     localStorage.removeItem("accessToken");
+    localStorage.setItem("cb_has_session", "0");
     const res = await axiosClient.post("/user/logout");
     return res.data;
 }

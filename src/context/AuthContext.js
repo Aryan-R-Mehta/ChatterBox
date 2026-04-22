@@ -6,6 +6,7 @@ import { getApiBaseUrl } from "@/config/api";
 import { fetchAuthenticatedProfile } from "@/api/chatBackendClient";
 
 const AuthContext = createContext(null);
+const SESSION_HINT_KEY = "cb_has_session";
 
 async function trySilentRefreshAccessToken() {
     const res = await axios.post(
@@ -16,6 +17,7 @@ async function trySilentRefreshAccessToken() {
     const accessToken = res.data?.accessToken;
     if (accessToken) {
         localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem(SESSION_HINT_KEY, "1");
     }
     return accessToken ?? null;
 }
@@ -26,12 +28,14 @@ export const AuthProvider = ({ children }) => {
 
     const refreshUser = useCallback(async ({ withLoading = false } = {}) => {
         let token = localStorage.getItem("accessToken");
+        const hasSessionHint = localStorage.getItem(SESSION_HINT_KEY) === "1";
 
-        if (!token) {
+        if (!token && hasSessionHint) {
             try {
                 token = await trySilentRefreshAccessToken();
             } catch {
                 token = null;
+                localStorage.setItem(SESSION_HINT_KEY, "0");
             }
         }
 

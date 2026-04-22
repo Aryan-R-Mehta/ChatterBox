@@ -5,6 +5,10 @@ import { deleteAccount, resetPassword, updateAuthenticatedProfile } from "@/api/
 import { useEffect, useState } from "react";
 import { showAppToast } from "@/components/AppToast/ToastNotification";
 import { useRouter } from "next/navigation";
+import { getApiErrorMessage } from "@/lib/http-error.util";
+import ModalShell from "@/components/ui/ModalShell";
+import PasswordInput from "@/components/ui/PasswordInput";
+import { validatePassword, validateUsername } from "@/lib/form-validation";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -55,11 +59,23 @@ export default function ProfilePage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const usernameError = validateUsername(profileForm.username);
+        if (usernameError) {
+            showAppToast("error", usernameError);
+            return;
+        }
+        if (String(profileForm.bio || "").length > 300) {
+            showAppToast("error", "Bio must be at most 300 characters");
+            return;
+        }
         try {
             const res = await updateAuthenticatedProfile(profileForm);
             setUser(res.user);
             setIsDirty(false);
-        } catch (err) { }
+            showAppToast("success", "Profile updated successfully");
+        } catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to update profile"));
+        }
     };
 
     const handleDiscard = () => {
@@ -67,15 +83,24 @@ export default function ProfilePage() {
             username: user?.username || "",
             email: user?.email || "",
             bio: user?.bio || "",
-            showStatus: user?.showStatus || true,
+            showStatus: user?.showStatus || false,
         });
         setIsDirty(false);
     };
 
     const handleResetPassword = async () => {
+        if (!resetPasswordForm.currentPassword.trim()) {
+            showAppToast("error", "Current password is required");
+            return;
+        }
+        const passwordError = validatePassword(resetPasswordForm.newPassword);
+        if (passwordError) {
+            showAppToast("error", passwordError);
+            return;
+        }
         if (resetPasswordForm.newPassword !== resetPasswordForm.confirmNewPassword)
         {
-            showAppToast("error", "new password and confirm new password are diffrent.");
+            showAppToast("error", "New password and confirm password must match.");
             return
         }
         try{
@@ -83,27 +108,27 @@ export default function ProfilePage() {
                 currentPassword: resetPasswordForm.currentPassword.trim(),
                 newPassword: resetPasswordForm.newPassword.trim(),
             })
-            showAppToast("success", "Password change successfully.");
+            showAppToast("success", "Password updated successfully");
         }
-        catch {
-            showAppToast("error", "Password change failed due to technichal error")
+        catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to update password"))
         }
         finally {
-            setOpenResetPasswordModal(!openResetPasswordModal)
+            setOpenResetPasswordModal(false)
         }
     }
 
     const handleDeleteAccount = async () => {
         try {
             await deleteAccount();
-            showAppToast("success", "Account Deleted Successfully.")
+            showAppToast("success", "Account deleted successfully")
             router.push("/auth/login");
         }
-        catch {
-            showAppToast("error", "Account Deletion failed due to technical error.")
+        catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to delete account"))
         }
         finally {
-            setOpenDeleteAccountModal(!openDeleteAccountModal)
+            setOpenDeleteAccountModal(false)
         }
     }
 
@@ -115,7 +140,7 @@ export default function ProfilePage() {
     if (loading) return <div className="loader"></div>;
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 pb-28 sm:px-6 lg:px-8">
             <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-3">
                     <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
@@ -212,6 +237,7 @@ export default function ProfilePage() {
                             </div>
 
                             <button
+                                type="button"
                                 className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm text-white hover:bg-indigo-500"
                                 onClick={() => setOpenResetPasswordModal(!openResetPasswordModal)}
                             >
@@ -233,6 +259,7 @@ export default function ProfilePage() {
                             </div>
 
                             <button
+                                type="button"
                                 className="rounded-lg bg-red-600 px-5 py-2.5 text-sm text-white hover:bg-red-500"
                                 onClick={() => setOpenDeleteAccountModal(!openDeleteAccountModal)}
                             >
@@ -245,8 +272,7 @@ export default function ProfilePage() {
             </div>
 
             {openResetPasswordModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in fade-in zoom-in-95">
+                <ModalShell panelClassName="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in fade-in zoom-in-95" onClose={() => setOpenResetPasswordModal(false)}>
 
                         {/* Header */}
                         <div className="mb-5">
@@ -260,8 +286,7 @@ export default function ProfilePage() {
 
                         {/* Inputs */}
                         <div className="space-y-4">
-                            <input
-                                type="password"
+                            <PasswordInput
                                 placeholder="Current Password"
                                 value={resetPasswordForm.currentPassword}
                                 onChange={(e) =>
@@ -273,8 +298,7 @@ export default function ProfilePage() {
                                 className={inputClass}
                             />
 
-                            <input
-                                type="password"
+                            <PasswordInput
                                 placeholder="New Password"
                                 className={inputClass}
                                 value={resetPasswordForm.newPassword}
@@ -286,8 +310,7 @@ export default function ProfilePage() {
                                 }
                             />
 
-                            <input
-                                type="password"
+                            <PasswordInput
                                 placeholder="Confirm New Password"
                                 className={inputClass}
                                 value={resetPasswordForm.confirmNewPassword}
@@ -303,6 +326,7 @@ export default function ProfilePage() {
                         {/* Actions */}
                         <div className="mt-6 flex justify-end gap-3">
                             <button
+                                type="button"
                                 onClick={() => setOpenResetPasswordModal(false)}
                                 className="px-4 py-2 text-sm rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white"
                             >
@@ -310,24 +334,23 @@ export default function ProfilePage() {
                             </button>
 
                             <button
+                                type="button"
                                 className="px-5 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow"
                                 onClick={handleResetPassword}
                             >
                                 Update Password
                             </button>
                         </div>
-                    </div>
-                </div>
+                </ModalShell>
             )}
 
             {openDeleteAccountModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in fade-in zoom-in-95">
+                <ModalShell panelClassName="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in fade-in zoom-in-95" onClose={() => setOpenDeleteAccountModal(false)}>
 
                         {/* Header */}
                         <div className="mb-5">
                             <h2 className="text-lg font-semibold text-white">
-                                Delete Account ???
+                                Delete account
                             </h2>
                             <p className="text-sm text-zinc-400">
                                 Are you sure you want to delete your account permanently.
@@ -337,6 +360,7 @@ export default function ProfilePage() {
                         {/* Actions */}
                         <div className="mt-6 flex justify-end gap-3">
                             <button
+                                type="button"
                                 onClick={() => setOpenDeleteAccountModal(false)}
                                 className="px-4 py-2 text-sm rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white"
                             >
@@ -344,14 +368,14 @@ export default function ProfilePage() {
                             </button>
 
                             <button
+                                type="button"
                                 className="px-5 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white shadow"
                                 onClick={handleDeleteAccount}
                             >
                                 Delete account
                             </button>
                         </div>
-                    </div>
-                </div>
+                </ModalShell>
             )}
 
             {/* Sticky save bar when the form is dirty */}
@@ -372,6 +396,7 @@ export default function ProfilePage() {
                         </button>
 
                         <button
+                            type="button"
                             onClick={handleSubmit}
                             className="rounded-lg px-5 py-2.5 text-sm text-white bg-indigo-600 hover:bg-indigo-500 shadow-md"
                         >

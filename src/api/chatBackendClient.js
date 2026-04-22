@@ -1,4 +1,5 @@
 import { axiosClient } from "@/utils/axios";
+import { clearAccessToken } from "@/lib/auth-storage";
 
 export async function registerAccount(payload) {
     try {
@@ -14,7 +15,7 @@ export async function signInWithEmail(payload) {
         const response = await axiosClient.post("/auth/login", payload);
         return response.data;
     } catch (error) {
-        throw error.response?.data || { message: "Something went wrong" };
+        throw error.response.data || { message: "Something went wrong" };
     }
 }
 
@@ -49,8 +50,7 @@ export async function updateAuthenticatedProfile(payload) {
 }
 
 export async function signOutAndInvalidateSession() {
-    localStorage.removeItem("accessToken");
-    localStorage.setItem("cb_has_session", "0");
+    clearAccessToken();
     const res = await axiosClient.post("/user/logout");
     return res.data;
 }

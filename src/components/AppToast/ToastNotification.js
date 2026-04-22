@@ -14,6 +14,8 @@ const toastUi = {
 };
 
 let externalShowToast = null;
+let lastToastSignature = "";
+let lastToastAt = 0;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -128,5 +130,16 @@ export function showAppToast(type, message) {
   if (!externalShowToast || !message) return;
 
   const normalizedType = type === "warnign" ? "warning" : type;
-  externalShowToast(normalizedType, message);
+  const normalizedMessage = String(message).trim();
+  if (!normalizedMessage) return;
+
+  const signature = `${normalizedType}:${normalizedMessage.toLowerCase()}`;
+  const now = Date.now();
+  const isDuplicateBurst = signature === lastToastSignature && now - lastToastAt < 1500;
+
+  if (isDuplicateBurst) return;
+
+  lastToastSignature = signature;
+  lastToastAt = now;
+  externalShowToast(normalizedType, normalizedMessage);
 }

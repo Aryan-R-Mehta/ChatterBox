@@ -4,9 +4,16 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import axios from "axios";
 import { getApiBaseUrl } from "@/config/api";
 import { fetchAuthenticatedProfile } from "@/api/chatBackendClient";
+import { isUnauthorizedError } from "@/lib/http-error.util";
+import {
+    clearAccessToken,
+    getAccessToken,
+    hasSessionHint,
+    setAccessToken,
+    setSessionHint,
+} from "@/lib/auth-storage";
 
 const AuthContext = createContext(null);
-const SESSION_HINT_KEY = "cb_has_session";
 
 async function trySilentRefreshAccessToken() {
     const res = await axios.post(
@@ -16,8 +23,7 @@ async function trySilentRefreshAccessToken() {
     );
     const accessToken = res.data?.accessToken;
     if (accessToken) {
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem(SESSION_HINT_KEY, "1");
+        setAccessToken(accessToken);
     }
     return accessToken ?? null;
 }
@@ -27,15 +33,17 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const refreshUser = useCallback(async ({ withLoading = false } = {}) => {
-        let token = localStorage.getItem("accessToken");
-        const hasSessionHint = localStorage.getItem(SESSION_HINT_KEY) === "1";
+        let token = getAccessToken();
+        const hasActiveSessionHint = hasSessionHint();
 
-        if (!token && hasSessionHint) {
+        if (!token && hasActiveSessionHint) {
             try {
                 token = await trySilentRefreshAccessToken();
-            } catch {
+            } catch (error) {
                 token = null;
-                localStorage.setItem(SESSION_HINT_KEY, "0");
+                if (isUnauthorizedError(error)) {
+                    setSessionHint(false);
+                }
             }
         }
 
@@ -53,7 +61,7 @@ export const AuthProvider = ({ children }) => {
             return res.user;
         } catch {
             setUser(null);
-            localStorage.removeItem("accessToken");
+            clearAccessToken();
             return null;
         } finally {
             if (withLoading) setLoading(false);

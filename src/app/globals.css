@@ -121,3 +121,74 @@ body {
 .custom-scrollbar::-webkit-scrollbar {
   width: 0px;
 }
+
+.mv-page-shell {
+  background: radial-gradient(circle at top, #1a2740 0%, var(--mv-app) 45%, #070b16 100%);
+}
+
+.mv-surface-card {
+  background: color-mix(in srgb, var(--mv-elevated) 82%, transparent);
+  border: 1px solid var(--mv-hairline);
+  border-radius: 1rem;
+  box-shadow: 0 18px 45px rgba(3, 8, 18, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.mv-modal-surface {
+  background: color-mix(in srgb, var(--mv-elevated) 90%, transparent);
+  border: 1px solid var(--mv-hairline);
+  border-radius: 1rem;
+  box-shadow: 0 20px 50px rgba(2, 7, 17, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.mv-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--mv-input-border);
+  background: var(--mv-input-bg);
+  color: var(--mv-text);
+  padding: 0.625rem 0.875rem;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.mv-input::placeholder {
+  color: var(--mv-placeholder);
+}
+
+.mv-input:focus {
+  border-color: var(--mv-accent-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mv-accent-blue) 30%, transparent);
+}
+
+.mv-btn {
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 120ms ease, filter 150ms ease, background 150ms ease;
+}
+
+.mv-btn:hover {
+  filter: brightness(1.05);
+}
+
+.mv-btn:active {
+  transform: scale(0.985);
+}
+
+.mv-btn-primary {
+  background: var(--mv-bubble-out);
+  color: var(--mv-bubble-out-text);
+}
+
+.mv-btn-secondary {
+  background: #273248;
+  color: var(--mv-text);
+}
+
+.mv-btn-danger {
+  background: color-mix(in srgb, var(--mv-danger) 72%, #3a1116);
+  color: #fff;
+}

@@ -12,6 +12,7 @@ import {
     sendChannelMessage,
     softDeleteChannelMessage,
 } from "@/api/chatBackendClient";
+import { getApiErrorMessage } from "@/lib/http-error.util";
 import { getSharedSocket } from "@/lib/socket";
 import {
     CopyIcon,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
+import ModalShell from "@/components/ui/ModalShell";
 
 export default function ChannelConversationPage({ params }) {
     const router = useRouter();
@@ -57,7 +59,10 @@ export default function ChannelConversationPage({ params }) {
                 const contacts = await fetchDirectoryContacts();
                 setDirectoryUsers(contacts);
             } catch (err) {
-                console.error(err);
+                showAppToast(
+                    "error",
+                    getApiErrorMessage(err, "Failed to load contacts")
+                );
             } finally {
                 setIsActionInFlight(false);
             }
@@ -101,8 +106,9 @@ export default function ChannelConversationPage({ params }) {
             setInviteSelectedUserIds([]);
             setIsInviteMembersModalOpen(false);
         } catch (err) {
-            console.error(err);
-            setInviteModalError("Failed to create chat");
+            const message = getApiErrorMessage(err, "Failed to add members");
+            setInviteModalError(message);
+            showAppToast("error", message);
         } finally {
             setIsActionInFlight(false);
         }
@@ -128,18 +134,24 @@ export default function ChannelConversationPage({ params }) {
         socket.emit("joinChannelRoom", channelId);
 
         const onChannelRenamed = (updatedChannel) => {
+            if (updatedChannel?.id !== channelId) return;
             setChannelRecord((prev) =>
                 prev ? { ...prev, name: updatedChannel.name } : prev
             );
         };
 
         const onIncomingMessage = (newMsg) => {
-            setChannelRecord((prev) =>
-                prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev
-            );
+            if (newMsg?.channelId !== channelId) return;
+            setChannelRecord((prev) => {
+                if (!prev) return prev;
+                const alreadyExists = prev.messages.some((msg) => msg.id === newMsg.id);
+                if (alreadyExists) return prev;
+                return { ...prev, messages: [...prev.messages, newMsg] };
+            });
         };
 
         const onMessageUpdated = (editedMsg) => {
+            if (editedMsg?.channelId !== channelId) return;
             setChannelRecord((prev) => {
                 if (!prev) return prev;
                 return {
@@ -154,6 +166,7 @@ export default function ChannelConversationPage({ params }) {
         };
 
         const onMessageRemoved = (deletedMsg) => {
+            if (deletedMsg?.channelId !== channelId) return;
             setChannelRecord((prev) => {
                 if (!prev) return prev;
                 return {
@@ -173,7 +186,10 @@ export default function ChannelConversationPage({ params }) {
                 const data = await fetchChannelDetail(channelId);
                 setChannelRecord(data);
             } catch (e) {
-                console.error(e);
+                showAppToast(
+                    "error",
+                    getApiErrorMessage(e, "Failed to refresh channel members")
+                );
             }
         };
 
@@ -197,6 +213,7 @@ export default function ChannelConversationPage({ params }) {
         socket.on("channelMemberRemoved", onChannelMemberRemoved);
 
         return () => {
+            socket.emit("leaveChannelRoom", channelId);
             socket.off("channelRenamed", onChannelRenamed);
             socket.off("incomingMessage", onIncomingMessage);
             socket.off("messageUpdated", onMessageUpdated);
@@ -226,12 +243,15 @@ export default function ChannelConversationPage({ params }) {
             e.preventDefault();
             if (!messageComposerText.trim()) return;
 
-            await sendChannelMessage({
-                channelId,
-                content: messageComposerText.trim(),
-            });
-
-            setMessageComposerText("");
+            try {
+                await sendChannelMessage({
+                    channelId,
+                    content: messageComposerText.trim(),
+                });
+                setMessageComposerText("");
+            } catch (err) {
+                showAppToast("error", getApiErrorMessage(err, "Failed to send message"));
+            }
         }
     };
 
@@ -262,33 +282,49 @@ export default function ChannelConversationPage({ params }) {
     };
 
     const confirmRemoveMember = async () => {
-        await removeChannelMembership(confirmationDialog.member.id);
-        closeConfirmationDialog();
+        try {
+            await removeChannelMembership(confirmationDialog.member.id);
+            closeConfirmationDialog();
+        } catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to remove member"));
+        }
     };
 
     const confirmRenameChannel = async () => {
-        await renameChannelTitle({
-            channelId,
-            name: dialogDraftText.trim(),
-        });
-        closeConfirmationDialog();
+        try {
+            await renameChannelTitle({
+                channelId,
+                name: dialogDraftText.trim(),
+            });
+            closeConfirmationDialog();
+        } catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to rename channel"));
+        }
     };
 
     const confirmEditMessage = async () => {
-        await editChannelMessage({
-            channelId,
-            messageId: confirmationDialog.message.id,
-            content: dialogDraftText.trim(),
-        });
-        closeConfirmationDialog();
+        try {
+            await editChannelMessage({
+                channelId,
+                messageId: confirmationDialog.message.id,
+                content: dialogDraftText.trim(),
+            });
+            closeConfirmationDialog();
+        } catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to edit message"));
+        }
     };
 
     const confirmDeleteMessage = async () => {
-        await softDeleteChannelMessage({
-            channelId,
-            messageId: confirmationDialog.message.id,
-        });
-        closeConfirmationDialog();
+        try {
+            await softDeleteChannelMessage({
+                channelId,
+                messageId: confirmationDialog.message.id,
+            });
+            closeConfirmationDialog();
+        } catch (err) {
+            showAppToast("error", getApiErrorMessage(err, "Failed to delete message"));
+        }
     };
 
     const resolveChannelTitle = (channel) => {
@@ -345,14 +381,10 @@ export default function ChannelConversationPage({ params }) {
                                     + Add Member
                                 </button>
                                 {isInviteMembersModalOpen && (
-                                    <div
-                                        className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50"
-                                        onClick={() => setIsInviteMembersModalOpen(false)}
+                                    <ModalShell
+                                        onClose={() => setIsInviteMembersModalOpen(false)}
+                                        panelClassName="bg-zinc-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-sm md:max-w-md shadow-2xl border border-zinc-700/50"
                                     >
-                                        <div
-                                            className="bg-zinc-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-sm md:max-w-md shadow-2xl border border-zinc-700/50"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
                                             <div className="flex items-center justify-between mb-4">
                                                 <h2 className="text-lg font-semibold text-white">
                                                     Create Chat
@@ -475,8 +507,7 @@ export default function ChannelConversationPage({ params }) {
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                    </ModalShell>
                                 )}
                             </div>
                             <div className="max-h-60 overflow-y-auto">
@@ -613,14 +644,11 @@ export default function ChannelConversationPage({ params }) {
             </div>
 
             {confirmationDialog.type && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-                    onClick={closeConfirmationDialog}
+                <ModalShell
+                    onClose={closeConfirmationDialog}
+                    panelClassName="bg-slate-900 border border-slate-700 rounded-xl p-6 w-3xl shadow-xl space-y-4"
+                    overlayClassName="bg-black/50"
                 >
-                    <div
-                        className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-3xl shadow-xl space-y-4"
-                        onClick={(e) => e.stopPropagation()}
-                    >
                         {confirmationDialog.type === "removeMember" && (
                             <>
                                 <h2 className="text-white font-semibold">
@@ -733,8 +761,7 @@ export default function ChannelConversationPage({ params }) {
                                 </div>
                             </>
                         )}
-                    </div>
-                </div>
+                </ModalShell>
             )}
         </div>
     );

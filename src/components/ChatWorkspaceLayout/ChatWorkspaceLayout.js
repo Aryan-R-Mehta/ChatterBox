@@ -7,13 +7,17 @@ import {
     fetchDirectoryContacts,
     fetchJoinedChannels,
 } from "@/api/chatBackendClient";
+import { showAppToast } from "@/components/AppToast/ToastNotification";
+import ModalShell from "@/components/ui/ModalShell";
+import { getApiErrorMessage } from "@/lib/http-error.util";
 import { getSharedSocket } from "@/lib/socket";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function ChatWorkspaceLayout({ children }) {
     const { user } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
     const socket = getSharedSocket();
     const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
     const [directoryUsers, setDirectoryUsers] = useState([]);
@@ -25,6 +29,7 @@ export default function ChatWorkspaceLayout({ children }) {
     const [modalError, setModalError] = useState("");
     const [channelSearchQuery, setChannelSearchQuery] = useState("");
     const [newChatUserSearchQuery, setNewChatUserSearchQuery] = useState("");
+    const isChannelRoute = Boolean(pathname && pathname !== "/");
 
     useEffect(() => {
         const loadChannels = async () => {
@@ -34,7 +39,7 @@ export default function ChatWorkspaceLayout({ children }) {
                 if (!joined.length) return;
                 setChannels(joined);
             } catch (err) {
-                console.error(err);
+                showAppToast("error", getApiErrorMessage(err, "Failed to load chats"));
             } finally {
                 setIsBusy(false);
             }
@@ -44,6 +49,20 @@ export default function ChatWorkspaceLayout({ children }) {
 
     useEffect(() => {
         if (!user) return;
+        const onChannelCreated = (newChannel) => {
+            if (!newChannel?.id || !Array.isArray(newChannel?.members)) return;
+            const isUserInChannel = newChannel.members.some(
+                (member) => member?.userId === user.id
+            );
+            if (!isUserInChannel) return;
+
+            setChannels((prev) => {
+                const exists = prev.some((ch) => ch.id === newChannel.id);
+                if (exists) return prev;
+                return [...prev, newChannel];
+            });
+        };
+
         const onChannelRenamed = (updatedChannel) => {
             setChannels((prev) =>
                 prev.map((ch) =>
@@ -54,9 +73,11 @@ export default function ChatWorkspaceLayout({ children }) {
             );
         };
 
+        socket.on("channelCreated", onChannelCreated);
         socket.on("channelRenamed", onChannelRenamed);
 
         return () => {
+            socket.off("channelCreated", onChannelCreated);
             socket.off("channelRenamed", onChannelRenamed);
         };
     }, [user, socket]);
@@ -73,7 +94,7 @@ export default function ChatWorkspaceLayout({ children }) {
                 const contacts = await fetchDirectoryContacts();
                 setDirectoryUsers(contacts);
             } catch (err) {
-                console.error(err);
+                showAppToast("error", getApiErrorMessage(err, "Failed to load contacts"));
             } finally {
                 setIsBusy(false);
             }
@@ -122,8 +143,9 @@ export default function ChatWorkspaceLayout({ children }) {
             setIsNewChatModalOpen(false);
             router.push(`/${channel.id}`);
         } catch (err) {
-            console.error(err);
-            setModalError("Failed to create chat");
+            const message = getApiErrorMessage(err, "Failed to create chat");
+            setModalError(message);
+            showAppToast("error", message);
         } finally {
             setIsBusy(false);
         }
@@ -155,10 +177,10 @@ export default function ChatWorkspaceLayout({ children }) {
 
     return (
         <div
-            className={`flex min-h-[calc(100vh-5rem)] min-w-0 flex-1 flex-col md:flex-row ${chatterColors.page}`}
+            className={`flex h-[calc(100dvh-5rem)] min-h-0 min-w-0 flex-1 flex-col md:h-[calc(100vh-5rem)] md:flex-row ${chatterColors.page}`}
         >
             <aside
-                className={`flex max-h-[40vh] w-full shrink-0 flex-col border-b md:max-h-none md:h-auto md:max-w-xs md:border-b-0 md:border-r ${chatterColors.sidebar}`}
+                className={`${isChannelRoute ? "hidden md:flex" : "flex h-full max-h-none"} w-full shrink-0 flex-col border-b md:max-h-none md:h-auto md:max-w-xs md:border-b-0 md:border-r ${chatterColors.sidebar}`}
             >
                 <div className="flex min-h-0 flex-1 flex-col gap-4 pt-6 px-5 md:min-h-[calc(100vh-5rem)]">
                     <div className="flex items-center justify-between">
@@ -167,22 +189,17 @@ export default function ChatWorkspaceLayout({ children }) {
                         <button
                             type="button"
                             onClick={() => setIsNewChatModalOpen(true)}
-                            className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition
-              hover:scale-[1.03] active:scale-[0.97] bg-[#2f6feb]"
+                            className="mv-btn mv-btn-primary flex items-center gap-1"
                         >
                             Create chat
                         </button>
                     </div>
 
                     {isNewChatModalOpen && (
-                        <div
-                            className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50"
-                            onClick={() => setIsNewChatModalOpen(false)}
+                        <ModalShell
+                            onClose={() => setIsNewChatModalOpen(false)}
+                            panelClassName="mv-modal-surface w-full max-w-sm p-6 md:max-w-md"
                         >
-                            <div
-                                className="bg-zinc-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-sm md:max-w-md shadow-2xl border border-zinc-700/50"
-                                onClick={(e) => e.stopPropagation()}
-                            >
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-lg font-semibold text-white">
                                         Create Chat
@@ -204,7 +221,7 @@ export default function ChatWorkspaceLayout({ children }) {
                                 <div className="mb-3">
                                     <input
                                         placeholder="Search users..."
-                                        className="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-sky-500 transition"
+                                        className="mv-input"
                                         value={newChatUserSearchQuery}
                                         onChange={(e) =>
                                             setNewChatUserSearchQuery(e.target.value)
@@ -272,7 +289,7 @@ export default function ChatWorkspaceLayout({ children }) {
                                         <button
                                             type="button"
                                             onClick={() => setIsNewChatModalOpen(false)}
-                                            className="px-4 py-2 text-sm bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition"
+                                            className="mv-btn mv-btn-secondary px-4 py-2 text-sm"
                                         >
                                             Cancel
                                         </button>
@@ -281,14 +298,13 @@ export default function ChatWorkspaceLayout({ children }) {
                                             type="button"
                                             disabled={isBusy || selectedUserIds.length === 0}
                                             onClick={handleStartConversation}
-                                            className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-500 text-white rounded-lg disabled:opacity-40 transition"
+                                            className="mv-btn mv-btn-primary px-4 py-2 text-sm disabled:opacity-40"
                                         >
                                             {isBusy ? "Creating…" : "Create"}
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </ModalShell>
                     )}
 
                     <div className="shrink-0">
@@ -355,7 +371,7 @@ export default function ChatWorkspaceLayout({ children }) {
             </aside>
 
             <div
-                className={`flex min-h-0 min-w-0 flex-1 flex-col ${chatterColors.mainArea}`}
+                className={`${!isChannelRoute ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col ${chatterColors.mainArea}`}
             >
                 {children}
             </div>

@@ -3,8 +3,12 @@
 import { signInWithEmail } from "@/api/chatBackendClient";
 import { useAuth } from "@/context/AuthContext";
 import { showAppToast } from "@/components/AppToast/ToastNotification";
+import { getApiErrorMessage } from "@/lib/http-error.util";
+import { setAccessToken } from "@/lib/auth-storage";
+import { validateEmail, validatePassword } from "@/lib/form-validation";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 function LoginFormInner() {
     const router = useRouter();
@@ -23,11 +27,20 @@ function LoginFormInner() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const emailError = validateEmail(formData.email);
+        if (emailError) {
+            showAppToast("error", emailError);
+            return;
+        }
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) {
+            showAppToast("error", passwordError);
+            return;
+        }
         setLoading(true);
         try {
             const res = await signInWithEmail(formData);
-            localStorage.setItem("accessToken", res.accessToken);
-            localStorage.setItem("cb_has_session", "1");
+            setAccessToken(res.accessToken);
             showAppToast("success", "Login successful");
             setFormData({
                 email: "",
@@ -36,7 +49,7 @@ function LoginFormInner() {
             setUser(res.user);
             router.push("/");
         } catch(err){
-            showAppToast("error", "Login failed");
+            showAppToast("error", getApiErrorMessage(err, "Login failed"));
         } finally {
             setLoading(false);
         }
@@ -55,7 +68,7 @@ function LoginFormInner() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="mt-2 w-full rounded-lg bg-white/5 px-3 py-2 text-white border border-white/10 focus:ring-2 focus:ring-indigo-500"
+                    className="mv-input mt-2"
                 />
             </div>
 
@@ -63,21 +76,20 @@ function LoginFormInner() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-200">
                     Password
                 </label>
-                <input
+                <PasswordInput
                     name="password"
                     id="password"
-                    type="password"
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="mt-2 w-full rounded-lg bg-white/5 px-3 py-2 text-white border border-white/10 focus:ring-2 focus:ring-indigo-500"
+                    className="mv-input mt-2"
                 />
             </div>
 
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="mv-btn mv-btn-primary w-full py-2 disabled:opacity-50"
             >
                 {loading ? "Logging in..." : "Login"}
             </button>

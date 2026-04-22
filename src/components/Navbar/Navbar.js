@@ -6,6 +6,7 @@ import { signOutAndInvalidateSession } from "@/api/chatBackendClient";
 import { useRouter } from "next/navigation";
 import { LogOutIcon } from "lucide-react";
 import { UserPen } from "lucide-react";
+import ModalShell from "@/components/ui/ModalShell";
 
 export default function Navbar() {
     const { user, loading, setUser } = useAuth();
@@ -52,15 +53,15 @@ export default function Navbar() {
                         <button
                             type="button"
                             onClick={() => setOpenDropdown(!openDropdown)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex items-center gap-2 rounded-full border border-[var(--mv-hairline)] bg-[var(--mv-elevated)] px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-[#21314d] focus:outline-none focus:ring-2 focus:ring-[var(--mv-accent-blue)]"
                         >
                             <span className="w-2 h-2 bg-green-500 rounded-full" />
                             {user.username}
                         </button>
 
                         {openDropdown && (
-                            <div className="absolute right-0 mt-3 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden">
-                                <div className="px-4 py-3 border-b border-slate-700">
+                            <div className="mv-modal-surface absolute right-0 mt-3 w-56 overflow-hidden">
+                                <div className="border-b border-[var(--mv-hairline)] px-4 py-3">
                                     <p className="text-sm font-semibold text-white">
                                         {user.username}
                                     </p>
@@ -73,27 +74,31 @@ export default function Navbar() {
                                     <li>
                                         <Link
                                             href="/profile"
-                                            className="flex gap-3 px-4 py-2 mt-1 hover:bg-slate-800 hover:text-white transition"
+                                            className="mt-1 flex gap-3 px-4 py-2 transition hover:bg-[#1c2d4a] hover:text-white"
                                             onClick={() => setOpenDropdown(false)}
                                         >
                                             <UserPen size={18} />
                                             Edit Profile
                                         </Link>
                                     </li>
-                                    <li className="border-t border-slate-700 mt-1 pt-1">
+                                    <li className="mt-1 border-t border-[var(--mv-hairline)] pt-1">
                                         <button
                                             type="button"
                                             onClick={() => setOpenLogoutModal(!openLogoutModal)}
-                                            className="w-full mb-1 flex gap-3 cursor-pointer text-left block px-4 py-2 text-red-500 hover:bg-red-500/10 transition"
+                                            className="mb-1 block w-full cursor-pointer px-4 py-2 text-left text-[var(--mv-danger)] transition hover:bg-red-500/10"
                                         >
-                                            <LogOutIcon size={18} />
-                                            Sign out
+                                            <span className="flex items-center gap-3">
+                                                <LogOutIcon size={18} />
+                                                Sign out
+                                            </span>
                                         </button>
 
                                         {openLogoutModal && (
-                                            <div className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/50">
-
-                                                <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-80 shadow-xl">
+                                            <ModalShell
+                                                onClose={() => setOpenLogoutModal(false)}
+                                                panelClassName="mv-modal-surface w-80 p-6"
+                                                overlayClassName="h-screen bg-black/50"
+                                            >
                                                     <h2 className="text-white text-lg font-semibold mb-4">
                                                         Confirm Logout
                                                     </h2>
@@ -105,20 +110,19 @@ export default function Navbar() {
                                                     <div className="flex justify-end gap-3">
                                                         <button
                                                             onClick={() => setOpenLogoutModal(false)}
-                                                            className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded text-white"
+                                                            className="mv-btn mv-btn-secondary px-4 py-2 text-sm"
                                                         >
                                                             Cancel
                                                         </button>
 
                                                         <button
                                                             onClick={handleSignOut}
-                                                            className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 rounded text-white"
+                                                            className="mv-btn mv-btn-danger px-4 py-2 text-sm"
                                                         >
                                                             Logout
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </div>
+                                            </ModalShell>
                                         )}
                                     </li>
                                 </ul>

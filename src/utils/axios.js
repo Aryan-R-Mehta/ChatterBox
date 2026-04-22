@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getApiBaseUrl } from "@/config/api";
+import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/auth-storage";
 
 export const axiosClient = axios.create({
   baseURL: getApiBaseUrl(),
@@ -10,7 +11,7 @@ export const axiosClient = axios.create({
 });
 
 axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -20,8 +21,13 @@ axiosClient.interceptors.request.use((config) => {
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error?.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
     const url = String(originalRequest?.url ?? "");
+
     if (url.includes("/auth/refresh")) {
       return Promise.reject(error);
     }
@@ -37,14 +43,18 @@ axiosClient.interceptors.response.use(
         );
 
         const newToken = res.data.accessToken;
+        if (!newToken) {
+          clearAccessToken();
+          return Promise.reject(error);
+        }
 
-        localStorage.setItem("accessToken", newToken);
+        setAccessToken(newToken);
 
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
         return axiosClient(originalRequest);
       } catch (err) {
-        localStorage.removeItem("accessToken");
+        clearAccessToken();
         return Promise.reject(err);
       }
     }

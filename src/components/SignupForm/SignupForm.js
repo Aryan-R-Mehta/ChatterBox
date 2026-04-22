@@ -3,8 +3,12 @@
 import { registerAccount } from "@/api/chatBackendClient";
 import { useAuth } from "@/context/AuthContext";
 import { showAppToast } from "@/components/AppToast/ToastNotification";
+import { getApiErrorMessage } from "@/lib/http-error.util";
+import { setAccessToken } from "@/lib/auth-storage";
+import { validateEmail, validatePassword, validateUsername } from "@/lib/form-validation";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function SignupForm() {
     const router = useRouter();
@@ -23,11 +27,25 @@ export default function SignupForm() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const usernameError = validateUsername(formData.username);
+        if (usernameError) {
+            showAppToast("error", usernameError);
+            return;
+        }
+        const emailError = validateEmail(formData.email);
+        if (emailError) {
+            showAppToast("error", emailError);
+            return;
+        }
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) {
+            showAppToast("error", passwordError);
+            return;
+        }
         setLoading(true);
         try{
             const res = await registerAccount(formData);
-            localStorage.setItem("accessToken", res.accessToken);
-            localStorage.setItem("cb_has_session", "1");
+            setAccessToken(res.accessToken);
             showAppToast("success", "Signup successful");
             setFormData({
                 username: "",
@@ -37,7 +55,7 @@ export default function SignupForm() {
             setUser(res.user);
             router.push("/");
         } catch (err){
-            showAppToast("error", "Signup failed");
+            showAppToast("error", getApiErrorMessage(err, "Signup failed"));
         } finally {
             setLoading(false);
         }
@@ -52,7 +70,7 @@ export default function SignupForm() {
                     required
                     value={formData.username}
                     onChange={handleChange}
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-white border border-white/10 outline-none focus:border-indigo-500"
+                    className="mv-input"
                 />
             </div>
 
@@ -64,26 +82,25 @@ export default function SignupForm() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-white border border-white/10 outline-none focus:border-indigo-500"
+                    className="mv-input"
                 />
             </div>
 
             <div>
                 <label className="block text-sm font-medium text-gray-100">Password</label>
-                <input
+                <PasswordInput
                     name="password"
-                    type="password"
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-white border border-white/10 outline-none focus:border-indigo-500"
+                    className="mv-input"
                 />
             </div>
 
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-indigo-500 hover:bg-indigo-600 py-2 rounded-md text-white font-bold transition-all disabled:opacity-50"
+                className="mv-btn mv-btn-primary w-full py-2 disabled:opacity-50"
             >
                 {loading ? "Signing up..." : "Sign up"}
             </button>

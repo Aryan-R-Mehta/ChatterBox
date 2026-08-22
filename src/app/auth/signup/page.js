@@ -11,7 +11,7 @@ export default function SignupPage() {
             Sign up
           </h2>
           <p className="mb-6 text-center text-sm text-slate-400">
-            Create your ChatterBox account
+            Create your new ChatterBox account
           </p>
           <SignupForm/>
           <p className="mt-10 text-center text-sm/6 text-slate-400">
